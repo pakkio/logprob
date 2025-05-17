@@ -4,7 +4,8 @@
 
 Sentence Confidence Analyzer is a web tool that allows you to analyze the confidence level with which an OpenAI language model generates each sentence in a response. This tool provides significant assistance in identifying potential hallucinations (inaccurate information) in AI-generated texts.
 
-![Demo Screenshot](https://example.com/screenshot.png)
+![image](https://github.com/user-attachments/assets/e4613415-9f14-4e5c-b66e-88ad8e0994b8)
+
 
 ## Key Features
 
