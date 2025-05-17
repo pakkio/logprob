@@ -1,3 +1,4 @@
+!pip install gradio
 import gradio as gr
 import requests
 import re
@@ -179,7 +180,7 @@ def create_interface():
     with gr.Blocks(title="Sentence Confidence Analyzer") as app:
         gr.Markdown("# Sentence Confidence Analyzer")
         
-        with gr.Box():
+        with gr.Group():
             gr.Markdown("## OpenAI API Key")
             
             api_key_input = gr.Textbox(
@@ -198,7 +199,7 @@ def create_interface():
                 outputs=[connection_status]
             )
         
-        with gr.Box():
+        with gr.Group():
             gr.Markdown("## Seleziona Modello")
             model_select = gr.Dropdown(
                 choices=[
@@ -211,7 +212,7 @@ def create_interface():
                 label="Modello"
             )
         
-        with gr.Box():
+        with gr.Group():
             gr.Markdown("## Prompt")
             prompt_input = gr.Textbox(
                 label="Prompt",
