@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sentence Confidence Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .input-section {
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        .sentence {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            position: relative;
+        }
+        #apiKey {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        .confidence-info {
+            margin-left: 10px;
+            font-size: 0.9em;
+        }
+        #modelSelect {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        #apiKeyFeedback {
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        .flex-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .loading {
+            display: inline-block;
+            margin-left: 5px;
+            animation: rotate 1s infinite linear;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Sentence Confidence Analyzer</h1>
+    
+    <div class="input-section">
+        <h2>OpenAI API Key</h2>
+        <input type="password" id="apiKey" placeholder="Inserisci la tua API key di OpenAI (sk-...)">
+        <div class="flex-container">
+            <button id="toggleKey">Mostra/Nascondi</button>
+            <button id="testConnection">Test Connessione</button>
+        </div>
+        <div id="apiKeyFeedback"></div>
+    </div>
+    
+    <div class="input-section">
+        <h2>Seleziona Modello</h2>
+        <select id="modelSelect">
+            <option value="gpt-4o-2024-08-06" selected>gpt-4o-2024-08-06 (consigliato)</option>
+            <option value="gpt-4o-mini-2024-07-18">gpt-4o-mini-2024-07-18</option>
+            <option value="gpt-4-turbo-2024-04-09">gpt-4-turbo-2024-04-09</option>
+            <option value="gpt-3.5-turbo-0125">gpt-3.5-turbo-0125</option>
+        </select>
+    </div>
+    
+    <div class="input-section">
+        <h2>Prompt</h2>
+        <textarea id="prompt">Descrivi le tecniche di scavo e i principali ritrovamenti archeologici del sito di Göbekli Tepe in Turchia, confrontandoli con quelli di Gunung Padang in Indonesia.</textarea>
+    </div>
+    
+    <button id="analyze">Analizza Confidenza</button>
+    <span id="loading" style="display: none;" class="loading">⟳</span>
+    
+    <div id="results" style="margin-top: 20px;"></div>
+    
+    <script>
+        // DOM elements
+        const apiKeyInput = document.getElementById('apiKey');
+        const toggleKeyBtn = document.getElementById('toggleKey');
+        const testConnectionBtn = document.getElementById('testConnection');
+        const apiKeyFeedback = document.getElementById('apiKeyFeedback');
+        const promptInput = document.getElementById('prompt');
+        const modelSelect = document.getElementById('modelSelect');
+        const analyzeBtn = document.getElementById('analyze');
+        const loadingIndicator = document.getElementById('loading');
+        const resultsContainer = document.getElementById('results');
+        
+        // Toggle API key visibility
+        toggleKeyBtn.addEventListener('click', function() {
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+            } else {
+                apiKeyInput.type = 'password';
+            }
+        });
+        
+        // Test API connection
+        testConnectionBtn.addEventListener('click', async function() {
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                apiKeyFeedback.textContent = "Inserisci una API key prima di testare";
+                apiKeyFeedback.style.color = "#dc3545";
+                return;
+            }
+            
+            apiKeyFeedback.textContent = "Test in corso...";
+            apiKeyFeedback.style.color = "#17a2b8";
+            testConnectionBtn.disabled = true;
+            
+            try {
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                
+                if (response.ok) {
+                    apiKeyFeedback.textContent = "✓ Connessione riuscita! API key valida.";
+                    apiKeyFeedback.style.color = "#28a745";
+                    
+                    // Clear feedback after 5 seconds
+                    setTimeout(() => {
+                        apiKeyFeedback.textContent = "";
+                    }, 5000);
+                } else {
+                    const errorData = await response.json();
+                    apiKeyFeedback.textContent = `✗ Errore API: ${errorData.error?.message || response.statusText}`;
+                    apiKeyFeedback.style.color = "#dc3545";
+                }
+            } catch (error) {
+                apiKeyFeedback.textContent = `✗ Errore di connessione: ${error.message}`;
+                apiKeyFeedback.style.color = "#dc3545";
+            } finally {
+                testConnectionBtn.disabled = false;
+            }
+        });
+        
+        // Convert logprob to confidence percentage
+        function logprobToConfidence(logprob) {
+            return Math.exp(logprob) * 100;
+        }
+        
+        // Get confidence label
+        function getConfidenceLabel(confidence) {
+            if (confidence > 95) return "Altissima confidenza";
+            if (confidence > 85) return "Alta confidenza";
+            if (confidence > 70) return "Media confidenza";
+            if (confidence > 50) return "Bassa confidenza";
+            return "Molto bassa confidenza";
+        }
+        
+        // Get color based on confidence
+        function getConfidenceColor(confidence) {
+            // Green to red spectrum
+            const r = Math.max(0, Math.min(255, Math.round(255 * (1 - confidence / 100))));
+            const g = Math.max(0, Math.min(255, Math.round(255 * (confidence / 100))));
+            const b = 0;
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        // Split text into sentences
+        function splitIntoSentences(text) {
+            return text.split(/(?<=[.!?])\s+/);
+        }
+        
+        // Group tokens into sentences
+        function groupTokensIntoSentences(text, tokens) {
+            const sentences = splitIntoSentences(text);
+            const sentenceData = [];
+            let currentTokenIndex = 0;
+            
+            for (const sentence of sentences) {
+                if (!sentence.trim()) continue;
+                
+                const sentenceTokens = [];
+                let currentSentenceText = '';
+                let foundFullSentence = false;
+                
+                while (currentTokenIndex < tokens.length && !foundFullSentence) {
+                    const token = tokens[currentTokenIndex];
+                    currentSentenceText += token.token;
+                    sentenceTokens.push(token);
+                    currentTokenIndex++;
+                    
+                    if (currentSentenceText.includes(sentence) || 
+                        sentence.trim().endsWith(currentSentenceText.trim())) {
+                        foundFullSentence = true;
+                    }
+                }
+                
+                if (sentenceTokens.length > 0) {
+                    const avgLogprob = sentenceTokens.reduce((sum, token) => sum + token.logprob, 0) / sentenceTokens.length;
+                    const confidence = logprobToConfidence(avgLogprob);
+                    
+                    sentenceData.push({
+                        text: sentence,
+                        confidence: confidence
+                    });
+                }
+            }
+            
+            return sentenceData;
+        }
+        
+        // Analyze the confidence
+        async function analyzeConfidence() {
+            const apiKey = apiKeyInput.value.trim();
+            const prompt = promptInput.value.trim();
+            const selectedModel = modelSelect.value;
+            
+            if (!apiKey) {
+                alert("Inserisci una API key valida");
+                return;
+            }
+            
+            if (!prompt) {
+                alert("Inserisci un prompt");
+                return;
+            }
+            
+            // Show loading indicator
+            loadingIndicator.style.display = 'inline-block';
+            resultsContainer.innerHTML = '';
+            analyzeBtn.disabled = true;
+            
+            try {
+                // Call OpenAI API
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: selectedModel,
+                        messages: [
+                            {
+                                role: "system",
+                                content: "You are a helpful assistant providing accurate and detailed information."
+                            },
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.7,
+                        logprobs: true,
+                        top_logprobs: 1
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Errore API sconosciuto');
+                }
+                
+                const data = await response.json();
+                
+                const text = data.choices[0].message.content;
+                
+                // Check if logprobs are available
+                if (!data.choices[0].logprobs || !data.choices[0].logprobs.content) {
+                    throw new Error("Logprobs non disponibili. Potrebbe essere dovuto alle limitazioni dell'API.");
+                }
+                
+                const logprobs = data.choices[0].logprobs.content;
+                
+                // Group tokens into sentences
+                const sentences = groupTokensIntoSentences(text, logprobs);
+                
+                // Display results
+                resultsContainer.innerHTML = '<h2>Risultati dell\'analisi</h2>';
+                
+                sentences.forEach((sentence, index) => {
+                    const color = getConfidenceColor(sentence.confidence);
+                    const label = getConfidenceLabel(sentence.confidence);
+                    
+                    const sentenceElement = document.createElement('div');
+                    sentenceElement.className = 'sentence';
+                    sentenceElement.style.color = color;
+                    sentenceElement.style.backgroundColor = `${color}15`;
+                    sentenceElement.style.borderLeft = `4px solid ${color}`;
+                    
+                    sentenceElement.innerHTML = `
+                        <strong>Frase ${index + 1}:</strong> ${sentence.text}
+                        <span class="confidence-info">(${sentence.confidence.toFixed(2)}% - ${label})</span>
+                    `;
+                    
+                    resultsContainer.appendChild(sentenceElement);
+                });
+                
+            } catch (error) {
+                resultsContainer.innerHTML = `
+                    <div style="color: red; padding: 10px; border-left: 4px solid red; background-color: #ffeeee;">
+                        <strong>Errore:</strong> ${error.message}
+                    </div>
+                `;
+                console.error('Error:', error);
+            } finally {
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+                analyzeBtn.disabled = false;
+            }
+        }
+        
+        // Analyze button click event
+        analyzeBtn.addEventListener('click', analyzeConfidence);
+    </script>
+</body>
+</html>
