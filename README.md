@@ -41,12 +41,17 @@ Nessuna installazione richiesta:
 2. Aprire il file con un browser web
 
 ### Versione Python (Gradio)
+
+Using Poetry (recommended):
+```bash
+poetry install --no-root
+poetry run python logprob_gradio.py
+```
+
+Or using pip:
 ```bash
 pip install gradio requests
-```
-Poi salvare il codice Python in un file `.py` ed eseguirlo:
-```bash
-python sentence_confidence_analyzer.py
+python logprob_gradio.py
 ```
 
 ## Utilizzo

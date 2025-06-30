@@ -1,4 +1,3 @@
-!pip install gradio
 import gradio as gr
 import requests
 import re
